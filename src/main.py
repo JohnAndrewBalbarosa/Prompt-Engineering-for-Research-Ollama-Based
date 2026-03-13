@@ -8,12 +8,15 @@ import sqlite3
 
 from src.answer_parser import extract_model_answer
 from src.config import ExperimentConfig, ModelConfig, load_config
+from src.confusion import make_confusion_client, run_confusion_check
 from src.db_utils import (
     init_db,
     load_all_parsed_rows,
     load_existing_success_keys,
+    replace_checker_results,
     replace_confusion_matrices,
     replace_metrics,
+    replace_quantitative_summary,
     upsert_parsed_result,
     upsert_raw_generation,
     upsert_run,
@@ -21,7 +24,7 @@ from src.db_utils import (
 from src.dataset_loader import load_gsm8k_records
 from src.env_utils import get_env_str
 from src.evaluator import evaluate_exact_match
-from src.io_utils import append_jsonl, load_csv_if_exists, write_csv, write_json
+from src.io_utils import append_jsonl, ensure_parent_dir, load_csv_if_exists, write_csv, write_json
 from src.judge import judge_response, make_judge_client
 from src.metrics import compute_metrics, export_metrics
 from src.models.base import BaseModelClient, GenerationResult
@@ -144,6 +147,7 @@ def main() -> None:
 
         client = build_client(model_config, config)
         judge_client = make_judge_client(config.judge) if config.judge.enabled else None
+        checker_client = make_confusion_client(config.confusion_check) if config.confusion_check.enabled else None
         for strategy in config.prompts.strategies:
             if args.strategy and strategy != args.strategy:
                 continue
@@ -179,7 +183,7 @@ def main() -> None:
                 if args.storage in {"file", "parallel"}:
                     append_jsonl(project_root / config.paths.raw_generations, raw_generation_record)
                     append_jsonl(
-                        project_root / "results" / "runs" / "by_strategy" / strategy / "raw_generations.jsonl",
+                        ensure_parent_dir(project_root / "results" / "runs" / "by_strategy" / strategy / "raw_generations.jsonl"),
                         raw_generation_record,
                     )
                 if connection is not None:
@@ -207,6 +211,37 @@ def main() -> None:
                     except Exception as error:
                         LOGGER.warning("Judge failed for item=%s model=%s strategy=%s: %s", record["item_id"], model_config.id, strategy, error)
 
+                checker_payload = {
+                    "checker_correctness": None,
+                    "checker_explanation": None,
+                    "checker_status": "skipped",
+                    "checker_error_message": None,
+                }
+                if config.confusion_check.enabled and generation.status == "success" and checker_client is not None:
+                    try:
+                        checker_payload = run_confusion_check(
+                            checker_client=checker_client,
+                            prompt_path=project_root / config.confusion_check.prompt_path,
+                            question=record["question"],
+                            gold_answer=record["gold_final_answer"],
+                            parsed_answer=parsed.value,
+                            model_response=generation.response_text,
+                        )
+                    except Exception as error:
+                        checker_payload = {
+                            "checker_correctness": None,
+                            "checker_explanation": None,
+                            "checker_status": "error",
+                            "checker_error_message": str(error),
+                        }
+                        LOGGER.warning(
+                            "Confusion check failed for item=%s model=%s strategy=%s: %s",
+                            record["item_id"],
+                            model_config.id,
+                            strategy,
+                            error,
+                        )
+
                 result_row = {
                     "run_id": run_id,
                     "item_id": record["item_id"],
@@ -225,6 +260,7 @@ def main() -> None:
                     "parse_notes": parsed.notes,
                     "exact_match_label": exact_match_label,
                     **judge_payload,
+                    **checker_payload,
                 }
                 collected_rows.append(result_row)
                 run_rows.append(result_row)
@@ -232,16 +268,28 @@ def main() -> None:
                     upsert_parsed_result(connection, result_row)
                 seen.add(key)
 
-    summary_rows, confusion_rows = compute_metrics(run_rows)
+    summary_rows, confusion_rows, quantitative_rows = compute_metrics(run_rows)
 
     if args.storage in {"file", "parallel"}:
         write_csv(project_root / config.paths.parsed_answers, collected_rows)
-        export_metrics(collected_rows, project_root / config.paths.metrics_summary, project_root / config.paths.confusion_matrices)
+        export_metrics(
+            run_rows,
+            project_root / config.paths.metrics_summary,
+            project_root / config.paths.confusion_matrices,
+            project_root / config.paths.quantitative_summary,
+            project_root / config.paths.quantitative_details,
+        )
         for strategy in config.prompts.strategies:
             strategy_rows = [row for row in collected_rows if row.get("prompt_strategy") == strategy]
             strategy_dir = project_root / "results" / "runs" / "by_strategy" / strategy
-            write_csv(strategy_dir / "parsed_answers.csv", strategy_rows)
-            export_metrics(strategy_rows, strategy_dir / "metrics_summary.csv", strategy_dir / "confusion_matrices.json")
+            write_csv(ensure_parent_dir(strategy_dir / "parsed_answers.csv"), strategy_rows)
+            export_metrics(
+                strategy_rows,
+                ensure_parent_dir(strategy_dir / "metrics_summary.csv"),
+                ensure_parent_dir(strategy_dir / "confusion_matrices.json"),
+                ensure_parent_dir(strategy_dir / "quantitative_summary.csv"),
+                ensure_parent_dir(strategy_dir / "quantitative_details.json"),
+            )
     providers_in_use = {model.provider for model in config.models}
     if config.judge.enabled:
         providers_in_use.add(config.judge.provider)
@@ -258,6 +306,8 @@ def main() -> None:
         "mode": "local-first",
         "storage_mode": args.storage,
         "dataset_retrieval_mode": config.dataset.retrieval_mode,
+        "confusion_check_enabled": config.confusion_check.enabled,
+        "confusion_check_model": config.confusion_check.model,
     }
 
     if args.storage in {"file", "parallel"}:
@@ -267,6 +317,8 @@ def main() -> None:
         upsert_run(connection, run_metadata)
         replace_metrics(connection, run_id, summary_rows)
         replace_confusion_matrices(connection, run_id, confusion_rows)
+        replace_checker_results(connection, run_id, run_rows)
+        replace_quantitative_summary(connection, run_id, quantitative_rows)
         connection.commit()
         connection.close()
 

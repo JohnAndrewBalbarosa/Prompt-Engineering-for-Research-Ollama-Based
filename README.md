@@ -11,6 +11,7 @@ This repository runs a prompt-engineering experiment on GSM8K with local-first a
 - Compare prompt strategies on a fixed local model setup
 - Parse final answers and evaluate exact-match correctness
 - Optionally run a local judge model for rubric-based scoring
+- Run a dedicated llama3.1 confusion checker for TP/TN/FP/FN analysis
 - Export structured outputs for analysis
 
 ## Requirements
@@ -157,6 +158,11 @@ ORDER BY run_id DESC, model_id, item_id;
 SELECT run_id, prompt_strategy, model_id, tp, fp, fn, tn, precision, recall, f1, no_data_reason
 FROM v_confusion_by_strategy
 ORDER BY run_id DESC, prompt_strategy, model_id;
+
+-- Quantitative normalized confusion metrics
+SELECT run_id, prompt_strategy, model_id, aggregate_type, precision, recall, f1, specificity, npv, balanced_accuracy
+FROM v_quantitative_by_strategy
+ORDER BY run_id DESC, prompt_strategy, model_id, aggregate_type;
 ```
 
 When `--storage parallel` or `--storage file` is used, additional files are written:
@@ -165,11 +171,15 @@ When `--storage parallel` or `--storage file` is used, additional files are writ
 - results/runs/local_parsed_answers.csv
 - results/runs/local_metrics_summary.csv
 - results/runs/local_confusion_matrices.json
+- results/runs/local_quantitative_summary.csv
+- results/runs/local_quantitative_details.json
 - results/runs/local_run_metadata.json
 - results/runs/by_strategy/<strategy>/raw_generations.jsonl
 - results/runs/by_strategy/<strategy>/parsed_answers.csv
 - results/runs/by_strategy/<strategy>/metrics_summary.csv
 - results/runs/by_strategy/<strategy>/confusion_matrices.json
+- results/runs/by_strategy/<strategy>/quantitative_summary.csv
+- results/runs/by_strategy/<strategy>/quantitative_details.json
 
 ## Notes
 

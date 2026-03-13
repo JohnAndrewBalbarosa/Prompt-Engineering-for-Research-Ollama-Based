@@ -14,6 +14,7 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     _create_schema(connection)
+    _ensure_schema_updates(connection)
     return connection
 
 
@@ -72,7 +73,73 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             arithmetic_score REAL,
             format_following_score REAL,
             judge_explanation TEXT,
+            checker_correctness INTEGER,
+            checker_explanation TEXT,
+            checker_status TEXT,
+            checker_error_message TEXT,
             UNIQUE (run_id, item_id, model_id, prompt_strategy)
+        );
+
+        CREATE TABLE IF NOT EXISTS models (
+            model_id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS strategies (
+            prompt_strategy TEXT PRIMARY KEY
+        );
+
+        CREATE TABLE IF NOT EXISTS run_models (
+            run_id TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            PRIMARY KEY (run_id, model_id),
+            FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE,
+            FOREIGN KEY (model_id) REFERENCES models(model_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS run_strategies (
+            run_id TEXT NOT NULL,
+            prompt_strategy TEXT NOT NULL,
+            PRIMARY KEY (run_id, prompt_strategy),
+            FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE,
+            FOREIGN KEY (prompt_strategy) REFERENCES strategies(prompt_strategy)
+        );
+
+        CREATE TABLE IF NOT EXISTS checker_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            prompt_strategy TEXT NOT NULL,
+            checker_correctness INTEGER,
+            checker_status TEXT,
+            checker_explanation TEXT,
+            checker_error_message TEXT,
+            UNIQUE (run_id, item_id, model_id, prompt_strategy)
+        );
+
+        CREATE TABLE IF NOT EXISTS quantitative_summary (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            prompt_strategy TEXT NOT NULL,
+            aggregate_type TEXT NOT NULL,
+            judgeable_rows INTEGER NOT NULL,
+            tn REAL NOT NULL,
+            fp REAL NOT NULL,
+            fn REAL NOT NULL,
+            tp REAL NOT NULL,
+            precision REAL NOT NULL,
+            recall REAL NOT NULL,
+            f1 REAL NOT NULL,
+            specificity REAL NOT NULL,
+            npv REAL NOT NULL,
+            balanced_accuracy REAL NOT NULL,
+            norm_tn REAL NOT NULL,
+            norm_fp REAL NOT NULL,
+            norm_fn REAL NOT NULL,
+            norm_tp REAL NOT NULL,
+            UNIQUE (run_id, model_id, prompt_strategy, aggregate_type)
         );
 
         CREATE TABLE IF NOT EXISTS metrics_summary (
@@ -147,8 +214,43 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             f1,
             no_data_reason
         FROM confusion_matrices;
+
+        CREATE VIEW IF NOT EXISTS v_quantitative_by_strategy AS
+        SELECT
+            run_id,
+            prompt_strategy,
+            model_id,
+            aggregate_type,
+            precision,
+            recall,
+            f1,
+            specificity,
+            npv,
+            balanced_accuracy,
+            norm_tn,
+            norm_fp,
+            norm_fn,
+            norm_tp
+        FROM quantitative_summary;
         """
     )
+
+
+def _column_exists(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+    rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return any(str(row["name"]) == column_name for row in rows)
+
+
+def _ensure_schema_updates(connection: sqlite3.Connection) -> None:
+    parsed_result_columns = {
+        "checker_correctness": "ALTER TABLE parsed_results ADD COLUMN checker_correctness INTEGER",
+        "checker_explanation": "ALTER TABLE parsed_results ADD COLUMN checker_explanation TEXT",
+        "checker_status": "ALTER TABLE parsed_results ADD COLUMN checker_status TEXT",
+        "checker_error_message": "ALTER TABLE parsed_results ADD COLUMN checker_error_message TEXT",
+    }
+    for column_name, statement in parsed_result_columns.items():
+        if not _column_exists(connection, "parsed_results", column_name):
+            connection.execute(statement)
 
 
 def upsert_run(connection: sqlite3.Connection, run_row: dict) -> None:
@@ -172,6 +274,32 @@ def upsert_run(connection: sqlite3.Connection, run_row: dict) -> None:
             run_row.get("mode", "local-only"),
         ),
     )
+
+    run_id = run_row["run_id"]
+    for strategy in run_row.get("strategies", []):
+        strategy_value = str(strategy)
+        connection.execute(
+            "INSERT INTO strategies (prompt_strategy) VALUES (?) ON CONFLICT(prompt_strategy) DO NOTHING",
+            (strategy_value,),
+        )
+        connection.execute(
+            "INSERT INTO run_strategies (run_id, prompt_strategy) VALUES (?, ?) ON CONFLICT(run_id, prompt_strategy) DO NOTHING",
+            (run_id, strategy_value),
+        )
+
+    for model in run_row.get("models", []):
+        model_id = str(model.get("id", ""))
+        provider = str(model.get("provider", ""))
+        if not model_id or not provider:
+            continue
+        connection.execute(
+            "INSERT INTO models (model_id, provider) VALUES (?, ?) ON CONFLICT(model_id) DO UPDATE SET provider = excluded.provider",
+            (model_id, provider),
+        )
+        connection.execute(
+            "INSERT INTO run_models (run_id, model_id) VALUES (?, ?) ON CONFLICT(run_id, model_id) DO NOTHING",
+            (run_id, model_id),
+        )
 
 
 def upsert_raw_generation(connection: sqlite3.Connection, row: dict) -> None:
@@ -235,8 +363,9 @@ def upsert_parsed_result(connection: sqlite3.Connection, row: dict) -> None:
             error_message, latency_ms, prompt_tokens, completion_tokens,
             gold_final_answer, parsed_answer, parse_success, parse_method, parse_notes,
             exact_match_label, judge_correctness, reasoning_score, arithmetic_score,
-            format_following_score, judge_explanation
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            format_following_score, judge_explanation, checker_correctness,
+            checker_explanation, checker_status, checker_error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(run_id, item_id, model_id, prompt_strategy) DO UPDATE SET
             provider = excluded.provider,
             status = excluded.status,
@@ -254,7 +383,11 @@ def upsert_parsed_result(connection: sqlite3.Connection, row: dict) -> None:
             reasoning_score = excluded.reasoning_score,
             arithmetic_score = excluded.arithmetic_score,
             format_following_score = excluded.format_following_score,
-            judge_explanation = excluded.judge_explanation
+            judge_explanation = excluded.judge_explanation,
+            checker_correctness = excluded.checker_correctness,
+            checker_explanation = excluded.checker_explanation,
+            checker_status = excluded.checker_status,
+            checker_error_message = excluded.checker_error_message
         """,
         (
             row["run_id"],
@@ -278,6 +411,10 @@ def upsert_parsed_result(connection: sqlite3.Connection, row: dict) -> None:
             row.get("arithmetic_score"),
             row.get("format_following_score"),
             row.get("judge_explanation"),
+            _to_db_bool(row.get("checker_correctness")),
+            row.get("checker_explanation"),
+            row.get("checker_status"),
+            row.get("checker_error_message"),
         ),
     )
 
@@ -344,6 +481,64 @@ def replace_confusion_matrices(connection: sqlite3.Connection, run_id: str, rows
         )
 
 
+def replace_checker_results(connection: sqlite3.Connection, run_id: str, rows: Iterable[dict]) -> None:
+    connection.execute("DELETE FROM checker_results WHERE run_id = ?", (run_id,))
+    for row in rows:
+        connection.execute(
+            """
+            INSERT INTO checker_results (
+                run_id, item_id, model_id, prompt_strategy,
+                checker_correctness, checker_status, checker_explanation, checker_error_message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                row["item_id"],
+                row["model_id"],
+                row["prompt_strategy"],
+                _to_db_bool(row.get("checker_correctness")),
+                row.get("checker_status"),
+                row.get("checker_explanation"),
+                row.get("checker_error_message"),
+            ),
+        )
+
+
+def replace_quantitative_summary(connection: sqlite3.Connection, run_id: str, rows: Iterable[dict]) -> None:
+    connection.execute("DELETE FROM quantitative_summary WHERE run_id = ?", (run_id,))
+    for row in rows:
+        connection.execute(
+            """
+            INSERT INTO quantitative_summary (
+                run_id, model_id, prompt_strategy, aggregate_type, judgeable_rows,
+                tn, fp, fn, tp, precision, recall, f1, specificity, npv,
+                balanced_accuracy, norm_tn, norm_fp, norm_fn, norm_tp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                row["model_id"],
+                row["prompt_strategy"],
+                row["aggregate_type"],
+                int(row.get("judgeable_rows", 0)),
+                float(row.get("tn", 0.0)),
+                float(row.get("fp", 0.0)),
+                float(row.get("fn", 0.0)),
+                float(row.get("tp", 0.0)),
+                float(row.get("precision", 0.0)),
+                float(row.get("recall", 0.0)),
+                float(row.get("f1", 0.0)),
+                float(row.get("specificity", 0.0)),
+                float(row.get("npv", 0.0)),
+                float(row.get("balanced_accuracy", 0.0)),
+                float(row.get("norm_tn", 0.0)),
+                float(row.get("norm_fp", 0.0)),
+                float(row.get("norm_fn", 0.0)),
+                float(row.get("norm_tp", 0.0)),
+            ),
+        )
+
+
 def load_existing_success_keys(connection: sqlite3.Connection) -> set[tuple[str, str, str]]:
     rows = connection.execute(
         """
@@ -362,7 +557,8 @@ def load_all_parsed_rows(connection: sqlite3.Connection) -> list[dict]:
             run_id, item_id, model_id, provider, prompt_strategy, status, error_message,
             latency_ms, prompt_tokens, completion_tokens, gold_final_answer, parsed_answer,
             parse_success, parse_method, parse_notes, exact_match_label, judge_correctness,
-            reasoning_score, arithmetic_score, format_following_score, judge_explanation
+            reasoning_score, arithmetic_score, format_following_score, judge_explanation,
+            checker_correctness, checker_explanation, checker_status, checker_error_message
         FROM parsed_results
         """
     ).fetchall()
@@ -392,6 +588,10 @@ def load_all_parsed_rows(connection: sqlite3.Connection) -> list[dict]:
                 "arithmetic_score": row["arithmetic_score"],
                 "format_following_score": row["format_following_score"],
                 "judge_explanation": row["judge_explanation"],
+                "checker_correctness": None if row["checker_correctness"] is None else bool(row["checker_correctness"]),
+                "checker_explanation": row["checker_explanation"],
+                "checker_status": row["checker_status"],
+                "checker_error_message": row["checker_error_message"],
             }
         )
     return parsed_rows

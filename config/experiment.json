@@ -34,12 +34,27 @@
     "retry_backoff_seconds": 2.0,
     "max_retry_backoff_seconds": 10.0
   },
+  "confusion_check": {
+    "enabled": true,
+    "provider": "ollama",
+    "model": "llama3.1:8b",
+    "temperature": 0.0,
+    "max_tokens": 120,
+    "timeout_seconds": 90,
+    "retries": 3,
+    "request_interval_seconds": 0.0,
+    "retry_backoff_seconds": 2.0,
+    "max_retry_backoff_seconds": 10.0,
+    "prompt_path": "prompts/confusion_prompt.txt"
+  },
   "paths": {
     "raw_dataset_snapshot": "data/raw/gsm8k_snapshot.jsonl",
     "raw_generations": "results/runs/local_raw_generations.jsonl",
     "parsed_answers": "results/runs/local_parsed_answers.csv",
     "metrics_summary": "results/runs/local_metrics_summary.csv",
     "confusion_matrices": "results/runs/local_confusion_matrices.json",
+    "quantitative_summary": "results/runs/local_quantitative_summary.csv",
+    "quantitative_details": "results/runs/local_quantitative_details.json",
     "run_metadata": "results/runs/local_run_metadata.json",
     "database": "results/runs/local_experiment_results.sqlite"
   },

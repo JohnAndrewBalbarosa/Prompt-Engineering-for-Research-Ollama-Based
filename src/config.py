@@ -55,12 +55,30 @@ class JudgeConfig:
 
 
 @dataclass
+class ConfusionCheckConfig:
+    enabled: bool = True
+    provider: str = "ollama"
+    model: str = "llama3.1:8b"
+    temperature: float = 0.0
+    max_tokens: int = 120
+    timeout_seconds: int = 60
+    retries: int = 3
+    request_interval_seconds: float = 2.0
+    retry_backoff_seconds: float = 5.0
+    max_retry_backoff_seconds: float = 30.0
+    base_url: str | None = None
+    prompt_path: str = "prompts/confusion_prompt.txt"
+
+
+@dataclass
 class PathsConfig:
     raw_dataset_snapshot: str = "data/raw/gsm8k_snapshot.jsonl"
     raw_generations: str = "results/runs/raw_generations.jsonl"
     parsed_answers: str = "results/runs/parsed_answers.csv"
     metrics_summary: str = "results/runs/metrics_summary.csv"
     confusion_matrices: str = "results/runs/confusion_matrices.json"
+    quantitative_summary: str = "results/runs/quantitative_summary.csv"
+    quantitative_details: str = "results/runs/quantitative_details.json"
     run_metadata: str = "results/runs/run_metadata.json"
     database: str = "results/runs/experiment_results.sqlite"
 
@@ -79,6 +97,7 @@ class ExperimentConfig:
     prompts: PromptConfig
     generation: GenerationConfig
     judge: JudgeConfig
+    confusion_check: ConfusionCheckConfig
     paths: PathsConfig
     models: List[ModelConfig]
 
@@ -95,6 +114,7 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
         prompts=PromptConfig(**data["prompts"]),
         generation=GenerationConfig(**data["generation"]),
         judge=JudgeConfig(**data["judge"]),
+        confusion_check=ConfusionCheckConfig(**data.get("confusion_check", {})),
         paths=PathsConfig(**data["paths"]),
         models=[ModelConfig(**model) for model in data["models"]],
     )

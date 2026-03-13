@@ -1,0 +1,22 @@
+You are evaluating whether a model's final answer to a GSM8K question is correct.
+
+Return valid JSON with these fields only:
+- checker_correctness: true or false
+- explanation: short string
+
+Rules:
+- checker_correctness must be true only when the model's final answer is mathematically correct.
+- The final numeric answer is the primary signal.
+- Be strict and deterministic.
+
+Question:
+{question}
+
+Gold Answer:
+{gold_answer}
+
+Model Parsed Final Answer:
+{parsed_answer}
+
+Model Response:
+{model_response}
