@@ -1,347 +1,176 @@
-# Gemini-Focused Prompt Engineering Experiment Plan
+# Local-Only Ollama Prompt Engineering Experiment Plan
 
 ## Objective
 
-Build a reproducible Python experiment pipeline that measures how prompt engineering affects answer correctness on GSM8K using Gemini as the only accessible model family for now.
+Build a reproducible local experiment pipeline that measures how prompt engineering affects answer correctness on GSM8K using Ollama for both response generation and optional judge evaluation.
 
-This study is no longer framed as a cross-model comparison. It is now framed as a within-model prompt-engineering evaluation using Gemini for both response generation and optional judge-based evaluation.
+This phase is intentionally local-only and single-provider. It is designed to be operationally stable and easy to rerun without cloud quota dependencies.
 
-## Practical Research Framing
+## Research Questions
 
-Because only Gemini API access is currently available, the research should focus on these questions:
+1. Does prompt engineering improve final-answer correctness when the model is held constant?
+2. How do zero-shot and chain-of-thought prompting compare under the same local model?
+3. How reliable is local model-as-judge output compared with exact GSM8K ground truth?
+4. How do local runtime settings (timeouts, intervals, retries) affect reproducibility and completion rate?
 
-1. Does prompt engineering improve Gemini's final-answer correctness on GSM8K?
-2. How do zero-shot and chain-of-thought prompting compare within the same Gemini model?
-3. How reliable is Gemini as a judge when compared with exact GSM8K ground truth?
-4. What quota, rate-limit, and prompt-length constraints affect reproducible evaluation with free Gemini access?
+## Scope
 
-## What This Study Is And Is Not
+### What This Study Is
 
-### What It Is
+- A local-only Ollama prompt-engineering experiment
+- A controlled within-model comparison of prompt strategies
+- Exact-match correctness evaluation on GSM8K
+- Optional judge reliability analysis using the same local provider
 
-- A Gemini-only prompt-engineering experiment
-- A controlled comparison of prompt strategies under one model family
-- A correctness and judge-reliability evaluation on GSM8K
-- A practical, quota-aware benchmark workflow
+### What This Study Is Not
 
-### What It Is Not
+- A cloud-provider comparison study
+- A cross-family benchmark across multiple APIs
+- A quota-constrained free-tier benchmark design
 
-- A broad comparison across OpenAI, Anthropic, Google, Meta, and DeepSeek
-- A claim about which frontier model is best overall
-- A final multi-model benchmark study
+## Active Implementation Constraints
 
-That broader study can still be added later once access and quota improve.
+- Generation provider is restricted to ollama
+- Judge provider is restricted to ollama
+- Dataset loading is snapshot-only from local JSONL
+- Non-ollama providers fail fast by design
 
-## Recommended Thesis Or Paper Positioning
+## Current Execution Workflow
 
-Use wording like this in your methodology and scope sections:
-
-> This phase of the study evaluates prompt-engineering effects within a single accessible model family, Gemini, due to current API and quota constraints. The design is intended as a reproducible pilot benchmark that can later be extended to additional LLM providers.
-
-That keeps the research defensible instead of pretending the study is already multi-model when it is not.
-
-## Current Execution Scope
-
-The current build should support:
-
-- GSM8K loading from Hugging Face dataset infrastructure
-- Prompt variants such as zero-shot and chain-of-thought
-- Gemini generation through Google AI Studio API access
-- Exact-answer extraction and correctness scoring
-- Gemini-as-a-judge evaluation
-- Confusion matrix analysis for judge reliability
-- CSV and JSON export for reporting
-
-## Recommended Project Structure
-
-```text
-Sir Alex/
-  experiment-plan.md
-  README.md
-  .env.example
-  config/
-    experiment-gemini.json
-  data/
-    raw/
-  prompts/
-    zero_shot.txt
-    cot.txt
-    judge_prompt.txt
-  results/
-    runs/
-      gemini_raw_generations.jsonl
-      gemini_parsed_answers.csv
-      gemini_metrics_summary.csv
-      gemini_confusion_matrices.json
-      gemini_run_metadata.json
-  src/
-    main.py
-    config.py
-    dataset_loader.py
-    prompt_builder.py
-    answer_parser.py
-    evaluator.py
-    judge.py
-    metrics.py
-    io_utils.py
-    env_utils.py
-    models/
-      base.py
-      google_client.py
-      openai_client.py
-```
-
-Note: the OpenAI client may remain in the codebase as optional future support, but it is not part of the active Gemini-focused study design.
-
-## Gemini-Focused Experimental Design
-
-## Independent Variable
-
-Prompt strategy:
-
-- zero-shot
-- chain-of-thought
-- optional future ablations if quota allows
-
-## Controlled Factors
-
-- Same dataset subset
-- Same Gemini model for all prompt conditions
-- Same temperature
-- Same max token settings
-- Same answer extraction rules
-- Same judging rubric
-
-## Dependent Variables
-
-- final-answer accuracy
-- parse success rate
-- judge agreement with ground truth
-- precision, recall, and F1 for judge reliability
-- average latency
-- failure rate caused by quota or rate limiting
-
-## Revised Research Logic
-
-Since model family is fixed, the key causal question becomes:
-
-> When the model is held constant, does changing the prompt improve performance?
-
-That is a valid and much cleaner experimental design than forcing a weak multi-model setup without access.
-
-## End-To-End Workflow
-
-1. Load Gemini experiment configuration.
-2. Download or load cached GSM8K data.
-3. Normalize gold answers.
-4. Build prompt variants.
-5. Run each question through Gemini for each prompt strategy.
-6. Save raw responses immediately.
-7. Parse final answers.
-8. Compare parsed answers with GSM8K gold answers.
-9. Run Gemini judge on successful generations.
-10. Compute metrics and confusion matrices.
-11. Export results for writing and plotting.
-
-## Configuration Plan
-
-### Primary Config File
-
-- `config/experiment-gemini.json`
-
-### What It Should Define
-
-- dataset split and sample size
-- prompt strategies
-- Gemini generation model name
-- Gemini judge model name
-- temperature and token limits
-- retry limits
-- output file paths
-
-### Current Recommended Gemini Setup
-
-- Generation model: `gemini-flash-lite-latest`
-- Judge model: `gemini-flash-lite-latest`
-- Sample size: start small, then scale up only if quota allows
-
-### Why This Matters
-
-Gemini free-tier limits are the central operational constraint in this project. Config must make it easy to reduce sample size, disable judging, or run only one strategy.
+1. Load experiment config.
+2. Load records from local snapshot file.
+3. Build prompt text for each strategy.
+4. Generate answers via Ollama.
+5. Save raw generations immediately.
+6. Parse final answers.
+7. Compute exact-match correctness.
+8. Run optional Ollama judge on successful generations.
+9. Export metrics and confusion matrices.
+10. Write run metadata.
 
 ## Dataset Plan
 
-### Dataset
+### Dataset Source
 
-- GSM8K test split
+- Local snapshot file only: data/raw/gsm8k_snapshot.jsonl
 
 ### Required Record Fields
 
-- `item_id`
-- `question`
-- `raw_answer`
-- `gold_final_answer`
-- `split`
+Normalized rows must provide:
 
-### Why GSM8K Still Works Well Here
+- item_id
+- question
+- gold_final_answer
+- split
 
-Even with one model family, GSM8K remains a valid benchmark because the study is about prompt effects on mathematical reasoning accuracy.
+Loader also accepts raw rows with:
+
+- question
+- answer
+
+When raw rows are used, gold_final_answer is derived automatically during load.
 
 ## Prompt Strategy Plan
 
-### Minimum Required Strategies
+### Current Required Strategies
 
-- `zero_shot`
-- `chain_of_thought`
+- zero_shot
+- chain_of_thought
 
 ### Optional Future Strategies
 
-- `question_only`
-- `ablation_no_reasoning`
-- `ablation_no_format`
-
-### Recommendation Under Free-Tier Quota
-
-Do not add more prompt variants until the first two can be run consistently.
-
-The correct expansion order is:
-
-1. zero-shot
-2. chain-of-thought
-3. judge-on-successful-rows only
-4. ablations later
-
-## Answer Extraction Plan
-
-The parser should continue to extract answers in this order:
-
-1. explicit `Final Answer:` line
-2. fallback formatted answer patterns
-3. last numeric expression
-
-This is necessary because Gemini sometimes follows formatting well and sometimes does not, especially under quota or short output budgets.
+- question_only
+- ablation_no_reasoning
+- ablation_no_format
 
 ## Evaluation Plan
 
-## Primary Metric
+### Primary Metric
 
-Exact-match correctness against GSM8K gold answers.
+- Exact-match correctness against GSM8K gold final answer
 
-This remains the primary metric. Judge output should never replace the ground truth answer check.
+### Judge Metrics
 
-## Judge Metric
+- Judge correctness flag
+- Reasoning score
+- Arithmetic score
+- Format-following score
+- Judge explanation
 
-Use Gemini as a judge only for rows where generation succeeded.
+### Reliability Outputs
 
-Judge output should measure:
+- TP, FP, TN, FN
+- Precision, recall, F1
 
-- whether the response is correct
-- quality of reasoning
-- arithmetic quality
-- format-following quality
+## Configuration Plan
 
-## Confusion Matrix Interpretation
+Primary config:
 
-The confusion matrix compares:
+- config/experiment.json
 
-- exact-match correctness
-- Gemini judge correctness
+Quick profile:
 
-This measures judge reliability, not raw task performance.
+- config/experiment-gemini.json (local-only quick run profile)
 
-If there are no successful rows, the confusion matrix should still show zero-valued rows rather than remaining empty.
+Current baseline in config/experiment.json:
 
-## Quota-Aware Execution Strategy
+- Generation model: llama3.1:8b
+- Judge model: llama3.1:8b
+- Sample size: 25
 
-This is now a core part of the plan, not a side note.
+## Environment Plan
 
-### Known Constraint
+Use .env.example for supported local runtime variables:
 
-Free Gemini access can fail mid-run with `429 RESOURCE_EXHAUSTED`.
+- EXPERIMENT_CONFIG_PATH
+- OLLAMA_BASE_URL
+- OLLAMA_REQUEST_INTERVAL_SECONDS
+- OLLAMA_JUDGE_REQUEST_INTERVAL_SECONDS
+- OLLAMA_RETRY_BACKOFF_SECONDS
+- OLLAMA_MAX_RETRY_BACKOFF_SECONDS
+- OLLAMA_JUDGE_RETRY_BACKOFF_SECONDS
+- OLLAMA_JUDGE_MAX_RETRY_BACKOFF_SECONDS
+- OLLAMA_GENERATION_BUCKET
+- OLLAMA_JUDGE_BUCKET
 
-### Required Design Responses
+Precedence order:
 
-- keep sample sizes small
-- save every generation immediately
-- skip only successful rows on rerun
-- allow rerunning one strategy at a time
-- allow judging only after generation succeeds
+1. CLI arguments
+2. Config file values
+3. Environment fallbacks
+4. Code defaults
 
-### Recommended Run Order
+## Output Artifacts
 
-1. Run `zero_shot` only.
-2. Check quota health.
-3. Run `chain_of_thought` only.
-4. Judge successful rows.
-5. Export metrics.
+Default output paths:
 
-This is better than running everything in one batch and exhausting quota halfway through.
+- results/runs/local_raw_generations.jsonl
+- results/runs/local_parsed_answers.csv
+- results/runs/local_metrics_summary.csv
+- results/runs/local_confusion_matrices.json
+- results/runs/local_run_metadata.json
 
-## Revised Metrics Plan
+## Interpretation Guidance
 
-For each prompt strategy, export:
+- Separate model reasoning outcomes from runtime errors.
+- Treat judge results as reliability analysis, not replacement for exact-match ground truth.
+- Report completion status honestly when rows fail due to local runtime issues.
 
-- total rows
-- success rows
-- error rows
-- judged rows
-- correct rows
-- incorrect rows
-- unparseable rows
-- accuracy on successful rows
-- parse failure rate on successful rows
-- average latency
+## Immediate Execution Recommendation
 
-For judge reliability, export:
-
-- TP
-- FP
-- TN
-- FN
-- precision
-- recall
-- F1
-
-## Revised Interpretation Guidance
-
-When writing the results section:
-
-- Separate model-performance outcomes from quota failures.
-- Do not mix API failure with reasoning failure.
-- Report incomplete conditions honestly.
-
-For example:
-
-> Zero-shot prompting completed on 8 of 10 sampled items before quota exhaustion and achieved 100% correctness on completed rows. Chain-of-thought prompting could not be fully evaluated in the same run due to Gemini free-tier request limits.
-
-That is methodologically stronger than pretending the missing rows are model failures.
-
-## Recommended Immediate Study Design
-
-For the current phase, the most defensible design is:
-
-- one Gemini model
-- two prompt strategies
-- one small GSM8K subset
-- Gemini judge on successful rows only
-- explicit reporting of quota failures
-
-This is a valid pilot study.
+1. Start with zero_shot only on a small sample.
+2. Run chain_of_thought next.
+3. Keep judge enabled only if runtime remains stable.
+4. Expand strategy count or sample size only after a stable baseline run.
 
 ## Future Expansion Path
 
-Once quota or additional provider access becomes available, extend in this order:
+Once local baseline is stable:
 
-1. Increase Gemini sample size
-2. Add more prompt ablations
-3. Add a second Gemini model tier
-4. Add a second provider family
-5. Convert the study into a true cross-model comparison
+1. Add more prompt ablations.
+2. Evaluate multiple local Ollama models.
+3. Reintroduce optional multi-provider support only if needed for a later comparative phase.
 
-## Recommended Final Position
+## Final Positioning Statement
 
-The research plan should now be described as:
-
-> A Gemini-centered pilot evaluation of prompt engineering on GSM8K, designed for reproducibility under limited-cost API access and structured to expand into a broader multi-model benchmark later.
-
-That matches what you can actually execute today.
+This project is currently a local-only pilot evaluation of prompt engineering on GSM8K, built for reproducibility and iterative expansion without cloud dependency.
