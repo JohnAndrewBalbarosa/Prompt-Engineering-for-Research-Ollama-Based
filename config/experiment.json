@@ -4,7 +4,9 @@
     "subset": "main",
     "split": "test",
     "sample_size": 25,
-    "seed": 42
+    "seed": 42,
+    "retrieval_mode": "auto",
+    "persist_downloaded_snapshot": true
   },
   "prompts": {
     "system_prompt": "You are a careful mathematical reasoning assistant.\nSolve the problem accurately.\n",
@@ -38,7 +40,8 @@
     "parsed_answers": "results/runs/local_parsed_answers.csv",
     "metrics_summary": "results/runs/local_metrics_summary.csv",
     "confusion_matrices": "results/runs/local_confusion_matrices.json",
-    "run_metadata": "results/runs/local_run_metadata.json"
+    "run_metadata": "results/runs/local_run_metadata.json",
+    "database": "results/runs/local_experiment_results.sqlite"
   },
   "models": [
     {

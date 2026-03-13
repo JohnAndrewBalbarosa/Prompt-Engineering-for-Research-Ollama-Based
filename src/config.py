@@ -13,6 +13,9 @@ class DatasetConfig:
     split: str = "test"
     sample_size: int | None = None
     seed: int = 42
+    retrieval_mode: str = "auto"
+    hf_cache_dir: str | None = None
+    persist_downloaded_snapshot: bool = True
     server_url: str | None = None
     request_timeout_seconds: int | None = None
 
@@ -59,6 +62,7 @@ class PathsConfig:
     metrics_summary: str = "results/runs/metrics_summary.csv"
     confusion_matrices: str = "results/runs/confusion_matrices.json"
     run_metadata: str = "results/runs/run_metadata.json"
+    database: str = "results/runs/experiment_results.sqlite"
 
 
 @dataclass

@@ -34,23 +34,113 @@ def _normalize_snapshot_row(row: dict, index: int, split: str) -> dict:
     raise ValueError("Snapshot row is missing required fields. Expected question + gold_final_answer (or answer).")
 
 
-def load_gsm8k_records(dataset_config: DatasetConfig, snapshot_path: str | Path) -> List[dict]:
-    snapshot_file = Path(snapshot_path)
-    if not snapshot_file.exists():
-        raise FileNotFoundError(
-            f"Snapshot file not found at {snapshot_file}. Local-only mode requires a local dataset snapshot."
-        )
+def _read_local_snapshot_rows(snapshot_path: Path, split: str) -> List[dict]:
+    if not snapshot_path.exists():
+        return []
 
-    raw_rows: List[dict] = []
-    with snapshot_file.open("r", encoding="utf-8") as handle:
+    rows: List[dict] = []
+    with snapshot_path.open("r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
-            raw_rows.append(json.loads(line))
+            row = json.loads(line)
+            row_split = str(row.get("split") or split)
+            if split and row.get("split") and row_split != split:
+                continue
+            rows.append(row)
+    return rows
 
-    if dataset_config.sample_size is not None and len(raw_rows) > dataset_config.sample_size:
-        random.Random(dataset_config.seed).shuffle(raw_rows)
-        raw_rows = raw_rows[: dataset_config.sample_size]
+
+def _fetch_remote_rows(dataset_config: DatasetConfig) -> List[dict]:
+    try:
+        from datasets import load_dataset
+    except Exception as error:
+        raise RuntimeError(
+            "Automatic dataset retrieval requires the 'datasets' package. Install dependencies and retry."
+        ) from error
+
+    cache_dir = Path(dataset_config.hf_cache_dir) if dataset_config.hf_cache_dir else None
+    dataset = load_dataset(
+        dataset_config.name,
+        dataset_config.subset,
+        split=dataset_config.split,
+        cache_dir=str(cache_dir) if cache_dir else None,
+    )
+
+    rows: List[dict] = []
+    for index, row in enumerate(dataset):
+        rows.append(
+            {
+                "item_id": f"{dataset_config.split}-{index}",
+                "question": row["question"],
+                "answer": row["answer"],
+                "split": dataset_config.split,
+            }
+        )
+    return rows
+
+
+def _deduplicate_rows(rows: List[dict]) -> List[dict]:
+    deduped: List[dict] = []
+    seen_questions: set[str] = set()
+    for row in rows:
+        question = str(row.get("question", "")).strip()
+        if not question or question in seen_questions:
+            continue
+        seen_questions.add(question)
+        deduped.append(row)
+    return deduped
+
+
+def _apply_sampling(rows: List[dict], sample_size: int | None, seed: int) -> List[dict]:
+    if sample_size is None or len(rows) <= sample_size:
+        return rows
+    sampled = list(rows)
+    random.Random(seed).shuffle(sampled)
+    return sampled[:sample_size]
+
+
+def _persist_snapshot(snapshot_path: Path, rows: List[dict]) -> None:
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    with snapshot_path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+
+
+def load_gsm8k_records(dataset_config: DatasetConfig, snapshot_path: str | Path) -> List[dict]:
+    snapshot_file = Path(snapshot_path)
+    retrieval_mode = (dataset_config.retrieval_mode or "auto").strip().lower()
+    if retrieval_mode not in {"local", "auto", "remote"}:
+        raise ValueError("dataset.retrieval_mode must be one of: local, auto, remote")
+
+    local_rows = _read_local_snapshot_rows(snapshot_file, dataset_config.split)
+    raw_rows: List[dict]
+
+    if retrieval_mode == "local":
+        if not local_rows:
+            raise FileNotFoundError(
+                f"Snapshot file not found or empty at {snapshot_file}. Local mode requires a local dataset snapshot."
+            )
+        raw_rows = local_rows
+    elif retrieval_mode == "remote":
+        raw_rows = _fetch_remote_rows(dataset_config)
+    else:
+        needs_more_rows = dataset_config.sample_size is not None and len(local_rows) < dataset_config.sample_size
+        if local_rows and not needs_more_rows:
+            raw_rows = local_rows
+        else:
+            try:
+                remote_rows = _fetch_remote_rows(dataset_config)
+                raw_rows = _deduplicate_rows(local_rows + remote_rows)
+                if dataset_config.persist_downloaded_snapshot:
+                    _persist_snapshot(snapshot_file, raw_rows)
+            except Exception:
+                if not local_rows:
+                    raise
+                raw_rows = local_rows
+
+    raw_rows = _deduplicate_rows(raw_rows)
+    raw_rows = _apply_sampling(raw_rows, dataset_config.sample_size, dataset_config.seed)
 
     records: List[dict] = []
     for index, row in enumerate(raw_rows):

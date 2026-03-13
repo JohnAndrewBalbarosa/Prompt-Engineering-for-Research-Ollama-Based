@@ -2,6 +2,7 @@ param(
     [string]$ConfigPath = "config/experiment.json",
     [string]$ModelName = "",
     [string[]]$ModelNames = @(),
+    [string[]]$MainArgs = @(),
     [switch]$SkipRun
 )
 
@@ -250,12 +251,17 @@ try {
     if ($SkipRun) {
         $venvPythonForMessage = Get-VenvPythonPath
         Write-Host "[done] Setup completed. Run manually with:"
-        Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath"
+        if (@($MainArgs).Count -gt 0) {
+            Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath $($MainArgs -join ' ')"
+        }
+        else {
+            Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath"
+        }
     }
     else {
         $venvPython = Get-VenvPythonPath
         Write-Host "[run] Starting experiment with config '$ConfigPath'..."
-        & $venvPython -m src.main --config $ConfigPath
+        & $venvPython -m src.main --config $ConfigPath @MainArgs
     }
 }
 catch {

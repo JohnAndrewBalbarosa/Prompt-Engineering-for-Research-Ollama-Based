@@ -37,11 +37,9 @@ def _latest_rows(results_rows: list[dict]) -> list[dict]:
     return [latest_by_key[key] for key in ordered_keys]
 
 
-def export_metrics(results_rows: list[dict], metrics_path: str | Path, confusion_path: str | Path) -> None:
+def compute_metrics(results_rows: list[dict]) -> tuple[list[dict], list[dict]]:
     if not results_rows:
-        write_csv(metrics_path, [])
-        write_json(confusion_path, [])
-        return
+        return [], []
 
     latest_results = _latest_rows(results_rows)
 
@@ -124,6 +122,16 @@ def export_metrics(results_rows: list[dict], metrics_path: str | Path, confusion
                 "no_data_reason": no_data_reason,
             }
         )
+
+    return summary_rows, confusion_rows
+
+
+def export_metrics(results_rows: list[dict], metrics_path: str | Path, confusion_path: str | Path) -> None:
+    summary_rows, confusion_rows = compute_metrics(results_rows)
+    if not summary_rows and not confusion_rows:
+        write_csv(metrics_path, [])
+        write_json(confusion_path, [])
+        return
 
     write_csv(metrics_path, summary_rows)
     write_json(confusion_path, confusion_rows)
