@@ -119,7 +119,12 @@ function Ensure-OllamaRunning {
         return
     }
     catch {
+        if (-not $env:OLLAMA_NUM_GPU) {
+            # Prefer GPU offload by default; users can override via env var.
+            $env:OLLAMA_NUM_GPU = "999"
+        }
         Write-Host "[setup] Starting Ollama server..."
+        Write-Host "[setup] OLLAMA_NUM_GPU=$($env:OLLAMA_NUM_GPU)"
         Start-Process -FilePath $ollamaExe -ArgumentList "serve" -WindowStyle Hidden | Out-Null
         Start-Sleep -Seconds 3
         & $ollamaExe list | Out-Null

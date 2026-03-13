@@ -44,6 +44,9 @@ Supported local env variables are defined in .env.example:
 - OLLAMA_MAX_RETRY_BACKOFF_SECONDS
 - OLLAMA_JUDGE_RETRY_BACKOFF_SECONDS
 - OLLAMA_JUDGE_MAX_RETRY_BACKOFF_SECONDS
+- OLLAMA_NUM_GPU
+- OLLAMA_DEVICES
+- OLLAMA_DEBUG
 - OLLAMA_GENERATION_BUCKET
 - OLLAMA_JUDGE_BUCKET
 
@@ -96,6 +99,13 @@ Windows behavior notes:
 - Pulls all Ollama models listed under `models[]` where `provider` is `ollama`
 - Also pulls Ollama judge model when `judge.enabled=true` and `judge.provider=ollama`
 - You can add extra pulls via `-ModelName` (single) or `-ModelNames` (multiple)
+- If `OLLAMA_NUM_GPU` is not set, the script defaults it to `999` before starting `ollama serve`
+
+GPU tips:
+
+- Set `OLLAMA_NUM_GPU=999` to prefer maximum layer offload on GPU
+- Set `OLLAMA_DEVICES` to pin specific GPU devices on multi-GPU systems
+- Set `OLLAMA_DEBUG=1` for device/backend diagnostics while troubleshooting
 
 Run a single model:
 
