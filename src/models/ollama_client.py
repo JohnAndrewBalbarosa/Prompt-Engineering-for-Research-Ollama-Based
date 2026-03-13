@@ -15,12 +15,16 @@ class OllamaModelClient(BaseModelClient):
     def __init__(self, model_config: ModelConfig, generation_config: GenerationConfig) -> None:
         self.model_config = model_config
         self.generation_config = generation_config
-        self.base_url = (
+        base_url = (
             model_config.base_url
             or generation_config.ollama_base_url
-            or get_env_str("OLLAMA_BASE_URL", "http://localhost:11434")
-            or "http://localhost:11434"
-        ).rstrip("/")
+            or get_env_str("OLLAMA_BASE_URL")
+        )
+        if not base_url:
+            raise ValueError(
+                "Ollama base URL is not configured. Set OLLAMA_BASE_URL in .env or provide generation.ollama_base_url/model.base_url in config."
+            )
+        self.base_url = base_url.rstrip("/")
         self.rate_limit_bucket = get_env_str("OLLAMA_GENERATION_BUCKET", "ollama-generation") or "ollama-generation"
 
     def generate(self, system_prompt: str, user_prompt: str) -> GenerationResult:

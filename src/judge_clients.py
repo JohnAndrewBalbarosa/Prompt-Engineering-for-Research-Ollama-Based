@@ -47,11 +47,15 @@ class BaseJudgeClient(ABC):
 class OllamaJudgeClient(BaseJudgeClient):
     def __init__(self, judge_config: JudgeConfig) -> None:
         super().__init__(judge_config)
-        self.base_url = (
+        base_url = (
             judge_config.base_url
-            or get_env_str("OLLAMA_BASE_URL", "http://localhost:11434")
-            or "http://localhost:11434"
-        ).rstrip("/")
+            or get_env_str("OLLAMA_BASE_URL")
+        )
+        if not base_url:
+            raise ValueError(
+                "Ollama base URL is not configured. Set OLLAMA_BASE_URL in .env or provide judge.base_url in config."
+            )
+        self.base_url = base_url.rstrip("/")
         self.rate_limit_bucket = get_env_str("OLLAMA_JUDGE_BUCKET", "ollama-judge") or "ollama-judge"
 
     def judge(self, prompt: str) -> dict:
