@@ -1,0 +1,7 @@
+Solve the following GSM8K math word problem.
+
+Return the answer on a final line in exactly this format:
+{final_answer_tag} <value>
+
+Question:
+{question}

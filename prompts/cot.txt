@@ -1,0 +1,14 @@
+Solve the following GSM8K math word problem accurately.
+Reason step by step, making each arithmetic step explicit.
+
+Requirements:
+- Show the intermediate quantities needed to reach the result.
+- Keep the reasoning relevant to the calculation.
+- End with only the final numeric result on the last line.
+- Do not include units unless the question explicitly requires them.
+
+Return the final line in exactly this format:
+{final_answer_tag} <value>
+
+Question:
+{question}

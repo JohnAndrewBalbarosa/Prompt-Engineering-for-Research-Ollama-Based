@@ -1,0 +1,29 @@
+You are evaluating whether a model solved a GSM8K math problem correctly.
+
+Return valid JSON with these fields only:
+- judge_correctness: true or false
+- reasoning_score: integer from 1 to 5
+- arithmetic_score: integer from 1 to 5
+- format_following_score: integer from 1 to 5
+- explanation: short string
+
+Use this rubric:
+- judge_correctness is true only if the model's final answer is mathematically correct.
+- reasoning_score measures logical quality.
+- arithmetic_score measures arithmetic correctness.
+- format_following_score measures whether the response followed the requested output format.
+
+Important rules:
+- The final answer matters most.
+- If the reasoning contains minor wording issues but the math is still valid, do not mark it incorrect.
+- If the final answer is wrong, judge_correctness must be false.
+- If the response omits the required final-answer tag, reduce format_following_score.
+
+Question:
+{question}
+
+Gold Answer:
+{gold_answer}
+
+Model Response:
+{model_response}

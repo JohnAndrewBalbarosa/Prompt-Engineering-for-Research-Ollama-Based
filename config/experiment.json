@@ -1,0 +1,50 @@
+{
+  "dataset": {
+    "name": "gsm8k",
+    "subset": "main",
+    "split": "test",
+    "sample_size": 25,
+    "seed": 42
+  },
+  "prompts": {
+    "system_prompt": "You are a careful mathematical reasoning assistant.\nSolve the problem accurately.\n",
+    "final_answer_tag": "Final Answer:",
+    "strategies": [
+      "zero_shot",
+      "chain_of_thought"
+    ]
+  },
+  "generation": {
+    "temperature": 0.0,
+    "max_tokens": 512,
+    "timeout_seconds": 60,
+    "retries": 3
+  },
+  "judge": {
+    "enabled": true,
+    "provider": "ollama",
+    "model": "llama3.1:8b",
+    "temperature": 0.0,
+    "max_tokens": 300,
+    "timeout_seconds": 120,
+    "retries": 3,
+    "request_interval_seconds": 0.0,
+    "retry_backoff_seconds": 2.0,
+    "max_retry_backoff_seconds": 10.0
+  },
+  "paths": {
+    "raw_dataset_snapshot": "data/raw/gsm8k_snapshot.jsonl",
+    "raw_generations": "results/runs/local_raw_generations.jsonl",
+    "parsed_answers": "results/runs/local_parsed_answers.csv",
+    "metrics_summary": "results/runs/local_metrics_summary.csv",
+    "confusion_matrices": "results/runs/local_confusion_matrices.json",
+    "run_metadata": "results/runs/local_run_metadata.json"
+  },
+  "models": [
+    {
+      "id": "ollama_main",
+      "provider": "ollama",
+      "model_name": "llama3.1:8b"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+Solve the following GSM8K math word problem accurately.
+
+Requirements:
+- Do not skip arithmetic.
+- Keep the response concise.
+- Give only the final numeric result on the last line.
+- Do not include units unless the question explicitly requires them.
+
+Return the final line in exactly this format:
+{final_answer_tag} <value>
+
+Question:
+{question}

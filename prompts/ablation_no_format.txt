@@ -1,0 +1,5 @@
+Solve the following GSM8K math word problem.
+Reason step by step before giving the result.
+
+Question:
+{question}

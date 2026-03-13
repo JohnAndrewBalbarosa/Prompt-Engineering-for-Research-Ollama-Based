@@ -1,0 +1,41 @@
+dataset:
+  name: gsm8k
+  subset: main
+  split: test
+  sample_size: 50
+  seed: 42
+
+prompts:
+  system_prompt: |
+    You are a careful mathematical reasoning assistant.
+    Solve the problem accurately.
+  final_answer_tag: Final Answer:
+  strategies:
+    - zero_shot
+    - chain_of_thought
+
+generation:
+  temperature: 0.0
+  max_tokens: 512
+  timeout_seconds: 60
+  retries: 3
+
+judge:
+  enabled: true
+  provider: ollama
+  model: llama3.1:8b
+  temperature: 0.0
+  max_tokens: 300
+
+paths:
+  raw_dataset_snapshot: data/raw/gsm8k_snapshot.jsonl
+  raw_generations: results/runs/raw_generations.jsonl
+  parsed_answers: results/runs/parsed_answers.csv
+  metrics_summary: results/runs/metrics_summary.csv
+  confusion_matrices: results/runs/confusion_matrices.json
+  run_metadata: results/runs/run_metadata.json
+
+models:
+  - id: ollama_main
+    provider: ollama
+    model_name: llama3.1:8b
