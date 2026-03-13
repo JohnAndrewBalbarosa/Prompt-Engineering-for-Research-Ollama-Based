@@ -17,6 +17,7 @@ from src.metrics import compute_metrics, export_metrics
 from src.models.base import BaseModelClient, GenerationResult
 from src.models.ollama_client import OllamaModelClient
 from src.prompt_builder import build_prompt
+from src.visualization import generate_visual_reports_from_files
 
 
 LOGGER = logging.getLogger("experiment_runner")
@@ -291,6 +292,16 @@ def main() -> None:
         project_root / config.paths.quantitative_summary,
         project_root / config.paths.quantitative_details,
     )
+    try:
+        generate_visual_reports_from_files(
+            confusion_path=project_root / config.paths.confusion_matrices,
+            quantitative_summary_path=project_root / config.paths.quantitative_summary,
+            output_dir=project_root / "results" / "runs" / "plots",
+            title_prefix="All Strategies",
+        )
+    except Exception as error:
+        LOGGER.warning("Visualization generation failed for global outputs: %s", error)
+
     for strategy in config.prompts.strategies:
         for model_config in config.models:
             strategy_model_rows = [
@@ -310,6 +321,15 @@ def main() -> None:
                 ensure_parent_dir(strategy_model_dir / "quantitative_summary.json"),
                 ensure_parent_dir(strategy_model_dir / "quantitative_details.json"),
             )
+            try:
+                generate_visual_reports_from_files(
+                    confusion_path=strategy_model_dir / "confusion_matrices.json",
+                    quantitative_summary_path=strategy_model_dir / "quantitative_summary.json",
+                    output_dir=strategy_model_dir / "plots",
+                    title_prefix=f"{strategy} | {model_config.id}",
+                )
+            except Exception as error:
+                LOGGER.warning("Visualization generation failed for strategy=%s model=%s: %s", strategy, model_config.id, error)
     providers_in_use = {model.provider for model in config.models}
     if config.judge.enabled:
         providers_in_use.add(config.judge.provider)
