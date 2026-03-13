@@ -99,101 +99,13 @@ function Get-OllamaExecutable {
     return $null
 }
 
-function Install-WindowsAppRuntimeFramework {
-    $runtimeUrl = "https://aka.ms/windowsappsdk/1.8/latest/windowsappruntimeinstall-x64.exe"
-    $runtimePath = Join-Path $env:TEMP "windowsappruntimeinstall-x64.exe"
-
-    Write-Host "[setup] Installing Microsoft.WindowsAppRuntime.1.8 dependency..."
-    Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimePath -UseBasicParsing
-
-    try {
-        Start-Process -FilePath $runtimePath -Wait
-    }
-    finally {
-        if (Test-Path $runtimePath) {
-            Remove-Item $runtimePath -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
-function Ensure-WingetInstalled {
-    if (Test-CommandExists "winget") {
-        return
-    }
-
-    Write-Host "[setup] winget not found. Attempting to install App Installer..."
-
-    if (-not (Test-CommandExists "Add-AppxPackage")) {
-        throw "winget is not available and this system cannot install App Installer automatically. Install App Installer from Microsoft Store and re-run this script."
-    }
-
-    $wingetBundleUrl = "https://aka.ms/getwinget"
-    $wingetBundlePath = Join-Path $env:TEMP "Microsoft.DesktopAppInstaller.msixbundle"
-
-    try {
-        Invoke-WebRequest -Uri $wingetBundleUrl -OutFile $wingetBundlePath -UseBasicParsing
-        Add-AppxPackage -Path $wingetBundlePath
-    }
-    catch {
-        if ($_.Exception.Message -match "Microsoft.WindowsAppRuntime.1.8") {
-            Install-WindowsAppRuntimeFramework
-            Add-AppxPackage -Path $wingetBundlePath
-        }
-        else {
-            throw "Automatic winget installation failed. Install App Installer from Microsoft Store and re-run this script. $($_.Exception.Message)"
-        }
-    }
-    finally {
-        if (Test-Path $wingetBundlePath) {
-            Remove-Item $wingetBundlePath -Force -ErrorAction SilentlyContinue
-        }
-    }
-
-    Start-Sleep -Seconds 2
-    if (-not (Test-CommandExists "winget")) {
-        throw "winget was installed but is not available in this shell yet. Close PowerShell, open a new one, and re-run this script."
-    }
-}
-
-function Install-OllamaDirect {
-    $installerUrl = "https://ollama.com/download/OllamaSetup.exe"
-    $installerPath = Join-Path $env:TEMP "OllamaSetup.exe"
-
-    Write-Host "[setup] Installing Ollama directly from official installer..."
-    Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
-
-    try {
-        # Run installer in foreground so interactive installs still work in locked-down environments.
-        Start-Process -FilePath $installerPath -Wait
-    }
-    finally {
-        if (Test-Path $installerPath) {
-            Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
 function Ensure-OllamaInstalled {
     $ollamaExe = Get-OllamaExecutable
     if ($ollamaExe) {
         return
     }
 
-    Write-Host "[setup] Ollama not found. Attempting installation via winget..."
-    try {
-        Ensure-WingetInstalled
-        winget install -e --id Ollama.Ollama --accept-package-agreements --accept-source-agreements --silent --disable-interactivity
-    }
-    catch {
-        Write-Host "[setup] winget path failed: $($_.Exception.Message)"
-        Write-Host "[setup] Falling back to direct Ollama installer..."
-        Install-OllamaDirect
-    }
-
-    $ollamaExe = Get-OllamaExecutable
-    if (-not $ollamaExe) {
-        throw "Ollama installation completed but command is still unavailable. Restart terminal and re-run this script."
-    }
+    throw "Ollama executable was not found. Install it manually, then re-run this script. Recommended command: irm https://ollama.com/install.ps1 | iex"
 }
 
 function Ensure-OllamaRunning {
