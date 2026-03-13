@@ -51,11 +51,22 @@ def parse_args() -> argparse.Namespace:
         help="Dataset retrieval mode override. local=only snapshot, auto=fallback to remote, remote=always fetch.",
     )
     parser.add_argument("--dataset-split", default=None, help="Dataset split override (for example: test or train).")
+    parser.add_argument(
+        "--snapshot-path",
+        default=None,
+        help="Optional GSM8K snapshot path override (absolute path or path relative to project root).",
+    )
     parser.add_argument("--sample-size", type=int, default=None, help="Optional dataset sample size override.")
+    parser.add_argument("--num-tests", type=int, default=None, help="Alias for --sample-size.")
     parser.add_argument(
         "--interactive-dataset-source",
         action="store_true",
         help="Prompt for dataset source mode when --dataset-source is not provided.",
+    )
+    parser.add_argument(
+        "--interactive-num-tests",
+        action="store_true",
+        help="Prompt for number of test items when --sample-size/--num-tests is not provided.",
     )
     parser.add_argument(
         "--storage",
@@ -107,11 +118,34 @@ def _prompt_dataset_source() -> str:
         print("Invalid choice. Enter one of: local, auto, remote.")
 
 
+def _prompt_num_tests(default_value: int | None) -> int:
+    default_text = f" [{default_value}]" if default_value is not None else ""
+    while True:
+        selected = input(f"Number of test items{default_text}: ").strip()
+        if not selected and default_value is not None:
+            return default_value
+        try:
+            value = int(selected)
+        except ValueError:
+            print("Invalid number. Enter a positive integer.")
+            continue
+        if value <= 0:
+            print("Invalid number. Enter a positive integer.")
+            continue
+        return value
+
+
 def _apply_runtime_overrides(config: ExperimentConfig, args: argparse.Namespace) -> None:
     if args.dataset_split:
         config.dataset.split = args.dataset_split
-    if args.sample_size is not None:
-        config.dataset.sample_size = args.sample_size
+
+    explicit_sample_size = args.num_tests if args.num_tests is not None else args.sample_size
+    if explicit_sample_size is not None:
+        if explicit_sample_size <= 0:
+            raise ValueError("--sample-size/--num-tests must be a positive integer.")
+        config.dataset.sample_size = explicit_sample_size
+    elif args.interactive_num_tests:
+        config.dataset.sample_size = _prompt_num_tests(config.dataset.sample_size)
 
     if args.dataset_source:
         config.dataset.retrieval_mode = args.dataset_source
@@ -131,7 +165,14 @@ def main() -> None:
     if args.storage in {"sql", "parallel"}:
         connection = init_db(project_root / config.paths.database)
 
-    records = load_gsm8k_records(config.dataset, project_root / config.paths.raw_dataset_snapshot)
+    if args.snapshot_path:
+        snapshot_path = Path(args.snapshot_path)
+        if not snapshot_path.is_absolute():
+            snapshot_path = project_root / snapshot_path
+    else:
+        snapshot_path = project_root / config.paths.raw_dataset_snapshot
+
+    records = load_gsm8k_records(config.dataset, snapshot_path)
     if connection is not None:
         existing_results = load_all_parsed_rows(connection)
         seen = load_existing_success_keys(connection)
@@ -306,6 +347,8 @@ def main() -> None:
         "mode": "local-first",
         "storage_mode": args.storage,
         "dataset_retrieval_mode": config.dataset.retrieval_mode,
+        "dataset_snapshot_path": str(snapshot_path),
+        "dataset_sample_size": config.dataset.sample_size,
         "confusion_check_enabled": config.confusion_check.enabled,
         "confusion_check_model": config.confusion_check.model,
     }

@@ -70,7 +70,10 @@ Useful runtime flags:
 
 - `--dataset-source local|auto|remote`
 - `--dataset-split test|train`
+- `--snapshot-path <path-to-gsm8k-jsonl>`
 - `--sample-size <int>`
+- `--num-tests <int>` (alias for `--sample-size`)
+- `--interactive-num-tests` (prompts for test count at runtime)
 - `--interactive-dataset-source` (prompts at startup when source not provided)
 - `--storage sql|parallel|file` (default is `sql`)
 
@@ -82,6 +85,9 @@ Examples:
 
 # Force remote retrieval and prompt for mode if omitted
 & ".venv/Scripts/python.exe" -m src.main --config config/experiment.json --interactive-dataset-source
+
+# Prompt for test count at runtime and use a custom snapshot file
+& ".venv/Scripts/python.exe" -m src.main --config config/experiment.json --interactive-num-tests --snapshot-path data/raw/gsm8k_snapshot.jsonl
 ```
 
 ## One-Click Scripts
