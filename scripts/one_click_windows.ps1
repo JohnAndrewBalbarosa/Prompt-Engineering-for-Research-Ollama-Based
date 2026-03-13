@@ -3,6 +3,7 @@ param(
     [string]$ModelName = "",
     [string[]]$ModelNames = @(),
     [string[]]$MainArgs = @(),
+    [int]$NumTests = 100,
     [switch]$SkipRun
 )
 
@@ -223,6 +224,21 @@ function Wait-BeforeExit {
     Read-Host "Press Enter to exit"
 }
 
+function Ensure-DefaultNumTestsArg {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Args,
+        [Parameter(Mandatory = $true)][int]$DefaultNumTests
+    )
+
+    foreach ($arg in $Args) {
+        if ($arg -match "^--(sample-size|num-tests)(=.+)?$") {
+            return $Args
+        }
+    }
+
+    return @("--num-tests", $DefaultNumTests.ToString()) + $Args
+}
+
 $exitCode = 0
 
 try {
@@ -250,9 +266,10 @@ try {
 
     if ($SkipRun) {
         $venvPythonForMessage = Get-VenvPythonPath
+        $effectiveMainArgs = @(Ensure-DefaultNumTestsArg -Args $MainArgs -DefaultNumTests $NumTests)
         Write-Host "[done] Setup completed. Run manually with:"
-        if (@($MainArgs).Count -gt 0) {
-            Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath $($MainArgs -join ' ')"
+        if (@($effectiveMainArgs).Count -gt 0) {
+            Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath $($effectiveMainArgs -join ' ')"
         }
         else {
             Write-Host "       $venvPythonForMessage -m src.main --config $ConfigPath"
@@ -260,8 +277,9 @@ try {
     }
     else {
         $venvPython = Get-VenvPythonPath
+        $effectiveMainArgs = @(Ensure-DefaultNumTestsArg -Args $MainArgs -DefaultNumTests $NumTests)
         Write-Host "[run] Starting experiment with config '$ConfigPath'..."
-        & $venvPython -m src.main --config $ConfigPath @MainArgs
+        & $venvPython -m src.main --config $ConfigPath @effectiveMainArgs
     }
 }
 catch {
