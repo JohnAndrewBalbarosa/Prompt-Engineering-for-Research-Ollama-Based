@@ -226,7 +226,7 @@ function Wait-BeforeExit {
 
 function Ensure-DefaultNumTestsArg {
     param(
-        [Parameter(Mandatory = $true)][string[]]$Args,
+        [AllowEmptyCollection()][string[]]$Args = @(),
         [Parameter(Mandatory = $true)][int]$DefaultNumTests
     )
 
