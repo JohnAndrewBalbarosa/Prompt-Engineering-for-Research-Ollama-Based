@@ -4,27 +4,14 @@ import argparse
 import logging
 from datetime import datetime, UTC
 from pathlib import Path
-import sqlite3
 
 from src.answer_parser import extract_model_answer
 from src.config import ExperimentConfig, ModelConfig, load_config
 from src.confusion import make_confusion_client, run_confusion_check
-from src.db_utils import (
-    init_db,
-    load_all_parsed_rows,
-    load_existing_success_keys,
-    replace_checker_results,
-    replace_confusion_matrices,
-    replace_metrics,
-    replace_quantitative_summary,
-    upsert_parsed_result,
-    upsert_raw_generation,
-    upsert_run,
-)
 from src.dataset_loader import load_gsm8k_records
 from src.env_utils import get_env_str
 from src.evaluator import evaluate_exact_match
-from src.io_utils import append_jsonl, ensure_parent_dir, load_csv_if_exists, write_csv, write_json
+from src.io_utils import append_jsonl, ensure_parent_dir, load_json_if_exists, write_json
 from src.judge import judge_response, make_judge_client
 from src.metrics import compute_metrics, export_metrics
 from src.models.base import BaseModelClient, GenerationResult
@@ -70,9 +57,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--storage",
-        choices=["sql", "parallel", "file"],
-        default="sql",
-        help="Storage mode: sql (SQLite only), parallel (SQLite + files), file (CSV/JSON only).",
+        default="file",
+        help="Deprecated storage flag. The runtime always writes JSON/JSONL outputs.",
     )
     return parser.parse_args()
 
@@ -161,10 +147,6 @@ def main() -> None:
     project_root = Path(args.config).resolve().parent.parent
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
-    connection: sqlite3.Connection | None = None
-    if args.storage in {"sql", "parallel"}:
-        connection = init_db(project_root / config.paths.database)
-
     if args.snapshot_path:
         snapshot_path = Path(args.snapshot_path)
         if not snapshot_path.is_absolute():
@@ -173,12 +155,8 @@ def main() -> None:
         snapshot_path = project_root / config.paths.raw_dataset_snapshot
 
     records = load_gsm8k_records(config.dataset, snapshot_path)
-    if connection is not None:
-        existing_results = load_all_parsed_rows(connection)
-        seen = load_existing_success_keys(connection)
-    else:
-        existing_results = load_csv_if_exists(project_root / config.paths.parsed_answers)
-        seen = completed_keys(existing_results)
+    existing_results = load_json_if_exists(project_root / config.paths.parsed_answers)
+    seen = completed_keys(existing_results)
     collected_rows = list(existing_results)
     run_rows: list[dict] = []
 
@@ -221,14 +199,12 @@ def main() -> None:
                     "prompt_tokens": generation.prompt_tokens,
                     "completion_tokens": generation.completion_tokens,
                 }
-                if args.storage in {"file", "parallel"}:
-                    append_jsonl(project_root / config.paths.raw_generations, raw_generation_record)
-                    append_jsonl(
-                        ensure_parent_dir(project_root / "results" / "runs" / "by_strategy" / strategy / "raw_generations.jsonl"),
-                        raw_generation_record,
-                    )
-                if connection is not None:
-                    upsert_raw_generation(connection, raw_generation_record)
+                append_jsonl(
+                    ensure_parent_dir(
+                        project_root / "results" / "runs" / "by_strategy" / strategy / model_config.id / "raw_generations.jsonl"
+                    ),
+                    raw_generation_record,
+                )
 
                 parsed = extract_model_answer(generation.response_text, config.prompts.final_answer_tag)
                 exact_match_label = evaluate_exact_match(parsed.value, record["gold_final_answer"])
@@ -305,31 +281,34 @@ def main() -> None:
                 }
                 collected_rows.append(result_row)
                 run_rows.append(result_row)
-                if connection is not None:
-                    upsert_parsed_result(connection, result_row)
                 seen.add(key)
 
-    summary_rows, confusion_rows, quantitative_rows = compute_metrics(run_rows)
+    write_json(project_root / config.paths.parsed_answers, collected_rows)
+    export_metrics(
+        run_rows,
+        project_root / config.paths.metrics_summary,
+        project_root / config.paths.confusion_matrices,
+        project_root / config.paths.quantitative_summary,
+        project_root / config.paths.quantitative_details,
+    )
+    for strategy in config.prompts.strategies:
+        for model_config in config.models:
+            strategy_model_rows = [
+                row
+                for row in collected_rows
+                if row.get("prompt_strategy") == strategy and row.get("model_id") == model_config.id
+            ]
+            if not strategy_model_rows:
+                continue
 
-    if args.storage in {"file", "parallel"}:
-        write_csv(project_root / config.paths.parsed_answers, collected_rows)
-        export_metrics(
-            run_rows,
-            project_root / config.paths.metrics_summary,
-            project_root / config.paths.confusion_matrices,
-            project_root / config.paths.quantitative_summary,
-            project_root / config.paths.quantitative_details,
-        )
-        for strategy in config.prompts.strategies:
-            strategy_rows = [row for row in collected_rows if row.get("prompt_strategy") == strategy]
-            strategy_dir = project_root / "results" / "runs" / "by_strategy" / strategy
-            write_csv(ensure_parent_dir(strategy_dir / "parsed_answers.csv"), strategy_rows)
+            strategy_model_dir = project_root / "results" / "runs" / "by_strategy" / strategy / model_config.id
+            write_json(ensure_parent_dir(strategy_model_dir / "parsed_answers.json"), strategy_model_rows)
             export_metrics(
-                strategy_rows,
-                ensure_parent_dir(strategy_dir / "metrics_summary.csv"),
-                ensure_parent_dir(strategy_dir / "confusion_matrices.json"),
-                ensure_parent_dir(strategy_dir / "quantitative_summary.csv"),
-                ensure_parent_dir(strategy_dir / "quantitative_details.json"),
+                strategy_model_rows,
+                ensure_parent_dir(strategy_model_dir / "metrics_summary.json"),
+                ensure_parent_dir(strategy_model_dir / "confusion_matrices.json"),
+                ensure_parent_dir(strategy_model_dir / "quantitative_summary.json"),
+                ensure_parent_dir(strategy_model_dir / "quantitative_details.json"),
             )
     providers_in_use = {model.provider for model in config.models}
     if config.judge.enabled:
@@ -345,7 +324,7 @@ def main() -> None:
         "models": [model.__dict__ for model in config.models],
         "api_keys_present": api_keys_present,
         "mode": "local-first",
-        "storage_mode": args.storage,
+        "storage_mode": "file",
         "dataset_retrieval_mode": config.dataset.retrieval_mode,
         "dataset_snapshot_path": str(snapshot_path),
         "dataset_sample_size": config.dataset.sample_size,
@@ -353,17 +332,7 @@ def main() -> None:
         "confusion_check_model": config.confusion_check.model,
     }
 
-    if args.storage in {"file", "parallel"}:
-        write_json(project_root / config.paths.run_metadata, run_metadata)
-
-    if connection is not None:
-        upsert_run(connection, run_metadata)
-        replace_metrics(connection, run_id, summary_rows)
-        replace_confusion_matrices(connection, run_id, confusion_rows)
-        replace_checker_results(connection, run_id, run_rows)
-        replace_quantitative_summary(connection, run_id, quantitative_rows)
-        connection.commit()
-        connection.close()
+    write_json(project_root / config.paths.run_metadata, run_metadata)
 
     LOGGER.info("Experiment run complete.")
 

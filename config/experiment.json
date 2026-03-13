@@ -3,7 +3,7 @@
     "name": "gsm8k",
     "subset": "main",
     "split": "test",
-    "sample_size": 25,
+    "sample_size": 20,
     "seed": 42,
     "retrieval_mode": "auto",
     "persist_downloaded_snapshot": true
@@ -50,13 +50,12 @@
   "paths": {
     "raw_dataset_snapshot": "data/raw/gsm8k_snapshot.jsonl",
     "raw_generations": "results/runs/local_raw_generations.jsonl",
-    "parsed_answers": "results/runs/local_parsed_answers.csv",
-    "metrics_summary": "results/runs/local_metrics_summary.csv",
+    "parsed_answers": "results/runs/local_parsed_answers.json",
+    "metrics_summary": "results/runs/local_metrics_summary.json",
     "confusion_matrices": "results/runs/local_confusion_matrices.json",
-    "quantitative_summary": "results/runs/local_quantitative_summary.csv",
+    "quantitative_summary": "results/runs/local_quantitative_summary.json",
     "quantitative_details": "results/runs/local_quantitative_details.json",
-    "run_metadata": "results/runs/local_run_metadata.json",
-    "database": "results/runs/local_experiment_results.sqlite"
+    "run_metadata": "results/runs/local_run_metadata.json"
   },
   "models": [
     {

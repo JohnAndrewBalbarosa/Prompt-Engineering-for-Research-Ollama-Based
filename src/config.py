@@ -74,13 +74,12 @@ class ConfusionCheckConfig:
 class PathsConfig:
     raw_dataset_snapshot: str = "data/raw/gsm8k_snapshot.jsonl"
     raw_generations: str = "results/runs/raw_generations.jsonl"
-    parsed_answers: str = "results/runs/parsed_answers.csv"
-    metrics_summary: str = "results/runs/metrics_summary.csv"
+    parsed_answers: str = "results/runs/parsed_answers.json"
+    metrics_summary: str = "results/runs/metrics_summary.json"
     confusion_matrices: str = "results/runs/confusion_matrices.json"
-    quantitative_summary: str = "results/runs/quantitative_summary.csv"
+    quantitative_summary: str = "results/runs/quantitative_summary.json"
     quantitative_details: str = "results/runs/quantitative_details.json"
     run_metadata: str = "results/runs/run_metadata.json"
-    database: str = "results/runs/experiment_results.sqlite"
 
 
 @dataclass

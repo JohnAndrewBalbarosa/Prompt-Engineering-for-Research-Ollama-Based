@@ -3,7 +3,7 @@
     "name": "gsm8k",
     "subset": "main",
     "split": "test",
-    "sample_size": 10,
+    "sample_size": 20,
     "seed": 42
   },
   "prompts": {
@@ -51,10 +51,10 @@
   "paths": {
     "raw_dataset_snapshot": "data/raw/gsm8k_snapshot.jsonl",
     "raw_generations": "results/runs/local_quick_raw_generations.jsonl",
-    "parsed_answers": "results/runs/local_quick_parsed_answers.csv",
-    "metrics_summary": "results/runs/local_quick_metrics_summary.csv",
+    "parsed_answers": "results/runs/local_quick_parsed_answers.json",
+    "metrics_summary": "results/runs/local_quick_metrics_summary.json",
     "confusion_matrices": "results/runs/local_quick_confusion_matrices.json",
-    "quantitative_summary": "results/runs/local_quick_quantitative_summary.csv",
+    "quantitative_summary": "results/runs/local_quick_quantitative_summary.json",
     "quantitative_details": "results/runs/local_quick_quantitative_details.json",
     "run_metadata": "results/runs/local_quick_run_metadata.json"
   },

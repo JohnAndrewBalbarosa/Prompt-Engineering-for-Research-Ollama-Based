@@ -4,7 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 import numpy as np
 
-from src.io_utils import write_csv, write_json
+from src.io_utils import write_json
 
 
 def _to_bool(value: object) -> bool | None:
@@ -41,6 +41,7 @@ def _latest_rows(results_rows: list[dict]) -> list[dict]:
 def _compute_confusion_stats(tp: int, fp: int, fn: int, tn: int) -> dict:
     precision = _safe_divide(tp, tp + fp)
     recall = _safe_divide(tp, tp + fn)
+    accuracy = _safe_divide(tp + tn, tp + tn + fp + fn)
     specificity = _safe_divide(tn, tn + fp)
     npv = _safe_divide(tn, tn + fn)
     f1 = _safe_divide(2 * precision * recall, precision + recall) if precision or recall else 0.0
@@ -53,6 +54,7 @@ def _compute_confusion_stats(tp: int, fp: int, fn: int, tn: int) -> dict:
     return {
         "precision": precision,
         "recall": recall,
+        "accuracy": accuracy,
         "f1": f1,
         "specificity": specificity,
         "npv": npv,
@@ -82,6 +84,7 @@ def _aggregate_quant_rows(quantitative_rows: list[dict]) -> list[dict]:
         "tp": float(np.mean([float(row["tp"]) for row in scored])),
         "precision": float(np.mean([float(row["precision"]) for row in scored])),
         "recall": float(np.mean([float(row["recall"]) for row in scored])),
+        "accuracy": float(np.mean([float(row["accuracy"]) for row in scored])),
         "f1": float(np.mean([float(row["f1"]) for row in scored])),
         "specificity": float(np.mean([float(row["specificity"]) for row in scored])),
         "npv": float(np.mean([float(row["npv"]) for row in scored])),
@@ -108,6 +111,7 @@ def _aggregate_quant_rows(quantitative_rows: list[dict]) -> list[dict]:
         "tp": tp,
         "precision": micro_stats["precision"],
         "recall": micro_stats["recall"],
+        "accuracy": micro_stats["accuracy"],
         "f1": micro_stats["f1"],
         "specificity": micro_stats["specificity"],
         "npv": micro_stats["npv"],
@@ -209,6 +213,7 @@ def compute_metrics(results_rows: list[dict]) -> tuple[list[dict], list[dict], l
                 "tp": tp,
                 "precision": stats["precision"],
                 "recall": stats["recall"],
+                "accuracy": stats["accuracy"],
                 "f1": stats["f1"],
                 "no_data_reason": no_data_reason,
             }
@@ -226,6 +231,7 @@ def compute_metrics(results_rows: list[dict]) -> tuple[list[dict], list[dict], l
                 "tp": tp,
                 "precision": stats["precision"],
                 "recall": stats["recall"],
+                "accuracy": stats["accuracy"],
                 "f1": stats["f1"],
                 "specificity": stats["specificity"],
                 "npv": stats["npv"],
@@ -251,13 +257,13 @@ def export_metrics(
 ) -> None:
     summary_rows, confusion_rows, quantitative_rows = compute_metrics(results_rows)
     if not summary_rows and not confusion_rows and not quantitative_rows:
-        write_csv(metrics_path, [])
+        write_json(metrics_path, [])
         write_json(confusion_path, [])
-        write_csv(quantitative_summary_path, [])
+        write_json(quantitative_summary_path, [])
         write_json(quantitative_details_path, [])
         return
 
-    write_csv(metrics_path, summary_rows)
+    write_json(metrics_path, summary_rows)
     write_json(confusion_path, confusion_rows)
-    write_csv(quantitative_summary_path, quantitative_rows)
+    write_json(quantitative_summary_path, quantitative_rows)
     write_json(quantitative_details_path, quantitative_rows)

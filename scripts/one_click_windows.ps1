@@ -3,7 +3,7 @@ param(
     [string]$ModelName = "",
     [string[]]$ModelNames = @(),
     [string[]]$MainArgs = @(),
-    [int]$NumTests = 100,
+    [int]$NumTests = 20,
     [switch]$SkipRun
 )
 

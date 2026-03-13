@@ -132,8 +132,6 @@ def load_gsm8k_records(dataset_config: DatasetConfig, snapshot_path: str | Path)
             try:
                 remote_rows = _fetch_remote_rows(dataset_config)
                 raw_rows = _deduplicate_rows(local_rows + remote_rows)
-                if dataset_config.persist_downloaded_snapshot:
-                    _persist_snapshot(snapshot_file, raw_rows)
             except Exception:
                 if not local_rows:
                     raise
@@ -141,6 +139,10 @@ def load_gsm8k_records(dataset_config: DatasetConfig, snapshot_path: str | Path)
 
     raw_rows = _deduplicate_rows(raw_rows)
     raw_rows = _apply_sampling(raw_rows, dataset_config.sample_size, dataset_config.seed)
+
+    # Persist the effective working snapshot so local snapshot size matches configured sampling.
+    if dataset_config.persist_downloaded_snapshot:
+        _persist_snapshot(snapshot_file, raw_rows)
 
     records: List[dict] = []
     for index, row in enumerate(raw_rows):
