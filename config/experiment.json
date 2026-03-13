@@ -42,9 +42,29 @@
   },
   "models": [
     {
-      "id": "ollama_main",
+      "id": "ollama_mistral_7b_instruct",
       "provider": "ollama",
-      "model_name": "llama3.1:8b"
+      "model_name": "mistral:7b-instruct"
+    },
+    {
+      "id": "ollama_gemma2_9b",
+      "provider": "ollama",
+      "model_name": "gemma2:9b"
+    },
+    {
+      "id": "ollama_phi3_mini",
+      "provider": "ollama",
+      "model_name": "phi3:mini"
+    },
+    {
+      "id": "ollama_qwen2_5_7b",
+      "provider": "ollama",
+      "model_name": "qwen2.5:7b"
+    },
+    {
+      "id": "ollama_llama2_13b_chat",
+      "provider": "ollama",
+      "model_name": "llama2:13b-chat"
     }
   ]
 }

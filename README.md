@@ -88,8 +88,14 @@ bash scripts/one_click_linux.sh
 
 Optional arguments:
 
-- Windows: `-ConfigPath config/experiment.json -ModelName llama3.1:8b -SkipRun`
+- Windows: `-ConfigPath config/experiment.json -ModelNames llama3.1:8b,deepseek-coder-v2 -SkipRun`
 - Linux: `--config config/experiment.json --model llama3.1:8b --skip-run`
+
+Windows behavior notes:
+
+- Pulls all Ollama models listed under `models[]` where `provider` is `ollama`
+- Also pulls Ollama judge model when `judge.enabled=true` and `judge.provider=ollama`
+- You can add extra pulls via `-ModelName` (single) or `-ModelNames` (multiple)
 
 Run a single model:
 
