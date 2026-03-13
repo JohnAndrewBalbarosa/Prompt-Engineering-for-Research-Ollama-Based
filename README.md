@@ -62,6 +62,35 @@ From repository root:
 & "c:/Users/Drew/Desktop/Prompt Engineering for Research Ollama Based/.venv/bin/python.exe" -m src.main --config config/experiment.json
 ```
 
+## One-Click Scripts
+
+These scripts automate local setup and execution:
+
+- Install Ollama if missing
+- Start Ollama server
+- Pull the required model
+- Create virtual environment
+- Install Python dependencies if present
+- Create .env from .env.example if missing
+- Run the experiment
+
+Windows PowerShell:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File scripts/one_click_windows.ps1
+```
+
+Linux:
+
+```bash
+bash scripts/one_click_linux.sh
+```
+
+Optional arguments:
+
+- Windows: `-ConfigPath config/experiment.json -ModelName llama3.1:8b -SkipRun`
+- Linux: `--config config/experiment.json --model llama3.1:8b --skip-run`
+
 Run a single model:
 
 ```powershell
