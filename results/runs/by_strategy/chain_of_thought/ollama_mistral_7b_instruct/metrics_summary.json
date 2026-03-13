@@ -1,0 +1,17 @@
+[
+  {
+    "model_id": "ollama_mistral_7b_instruct",
+    "prompt_strategy": "chain_of_thought",
+    "total_rows": 20,
+    "success_rows": 20,
+    "error_rows": 0,
+    "judgeable_rows": 20,
+    "judge_missing_rows": 0,
+    "correct_rows": 11,
+    "incorrect_rows": 9,
+    "unparseable_rows": 0,
+    "accuracy": 0.55,
+    "parse_failure_rate": 0.0,
+    "avg_latency_ms": 6498.85
+  }
+]

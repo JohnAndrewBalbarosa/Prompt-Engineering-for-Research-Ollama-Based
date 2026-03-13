@@ -1,0 +1,20 @@
+[
+  {
+    "model_id": "ollama_llama2_13b_chat",
+    "prompt_strategy": "chain_of_thought",
+    "total_rows": 20,
+    "success_rows": 20,
+    "error_rows": 0,
+    "judgeable_rows": 20,
+    "judge_missing_rows": 0,
+    "tn": 15,
+    "fp": 3,
+    "fn": 0,
+    "tp": 2,
+    "precision": 0.4,
+    "recall": 1.0,
+    "accuracy": 0.85,
+    "f1": 0.5714285714285715,
+    "no_data_reason": null
+  }
+]

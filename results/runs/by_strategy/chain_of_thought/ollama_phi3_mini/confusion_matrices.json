@@ -1,0 +1,20 @@
+[
+  {
+    "model_id": "ollama_phi3_mini",
+    "prompt_strategy": "chain_of_thought",
+    "total_rows": 20,
+    "success_rows": 20,
+    "error_rows": 0,
+    "judgeable_rows": 20,
+    "judge_missing_rows": 0,
+    "tn": 3,
+    "fp": 0,
+    "fn": 1,
+    "tp": 16,
+    "precision": 1.0,
+    "recall": 0.9411764705882353,
+    "accuracy": 0.95,
+    "f1": 0.9696969696969697,
+    "no_data_reason": null
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "model_id": "ollama_qwen2_5_7b",
+    "prompt_strategy": "zero_shot",
+    "total_rows": 20,
+    "success_rows": 20,
+    "error_rows": 0,
+    "judgeable_rows": 20,
+    "judge_missing_rows": 0,
+    "tn": 8,
+    "fp": 0,
+    "fn": 0,
+    "tp": 12,
+    "precision": 1.0,
+    "recall": 1.0,
+    "accuracy": 1.0,
+    "f1": 1.0,
+    "no_data_reason": null
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "run_id": "20260313T221328Z",
+  "config_path": "config\\experiment.json",
+  "record_count": 20,
+  "strategies": [
+    "zero_shot",
+    "chain_of_thought"
+  ],
+  "models": [
+    {
+      "id": "ollama_mistral_7b_instruct",
+      "provider": "ollama",
+      "model_name": "mistral:7b-instruct",
+      "base_url": null
+    },
+    {
+      "id": "ollama_gemma2_9b",
+      "provider": "ollama",
+      "model_name": "gemma2:9b",
+      "base_url": null
+    },
+    {
+      "id": "ollama_phi3_mini",
+      "provider": "ollama",
+      "model_name": "phi3:mini",
+      "base_url": null
+    },
+    {
+      "id": "ollama_qwen2_5_7b",
+      "provider": "ollama",
+      "model_name": "qwen2.5:7b",
+      "base_url": null
+    },
+    {
+      "id": "ollama_llama2_13b_chat",
+      "provider": "ollama",
+      "model_name": "llama2:13b-chat",
+      "base_url": null
+    }
+  ],
+  "api_keys_present": {
+    "ollama": true
+  },
+  "mode": "local-first",
+  "storage_mode": "file",
+  "dataset_retrieval_mode": "auto",
+  "dataset_snapshot_path": "C:\\Users\\Administrator\\Documents\\GitHub\\Prompt-Engineering-for-Research-Ollama-Based\\data\\raw\\gsm8k_snapshot.jsonl",
+  "dataset_sample_size": 20,
+  "confusion_check_enabled": true,
+  "confusion_check_model": "llama3.1:8b"
+}
