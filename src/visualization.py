@@ -69,6 +69,7 @@ def generate_visual_reports(
         matrix = np.array([[tn, fp], [fn, tp]], dtype=float)
         row_sums = matrix.sum(axis=1, keepdims=True)
         normalized = np.divide(matrix, row_sums, out=np.zeros_like(matrix), where=row_sums != 0)
+        cell_names = [["True Negative", "False Positive"], ["False Negative", "True Positive"]]
 
         fig, ax = plt.subplots(figsize=(5.2, 4.4))
         heatmap = ax.imshow(normalized, cmap="Blues", vmin=0.0, vmax=1.0)
@@ -81,7 +82,7 @@ def generate_visual_reports(
                 ax.text(
                     j,
                     i,
-                    f"{normalized[i, j]:.2f}\n({int(matrix[i, j])})",
+                    f"{cell_names[i][j]}\n{normalized[i, j]:.2f}\n({int(matrix[i, j])})",
                     ha="center",
                     va="center",
                     color="black",
