@@ -206,3 +206,24 @@ Outputs are JSON/JSONL artifacts:
 - Dataset retrieval supports local snapshot and automatic Hugging Face download (via `datasets`).
 - Successful rows are skipped on reruns based on parsed output state.
 
+
+## Architecture (UML)
+
+```mermaid
+graph TD
+    ConfigLoader["Config Loader<br/>Load strategies & models"]
+    DatasetLoader["Dataset Loader<br/>GSM8K fetch/cache"]
+    
+    StrategyExecutor["Strategy Executor<br/>Chain-of-thought, Zero-shot"]
+    OllamaClient["Ollama Client<br/>Local LLM provider"]
+    
+    Judge["Judge<br/>Evaluate answers"]
+    ResultAggregator["Result Aggregator<br/>Metrics & plots"]
+    
+    ConfigLoader -->|config| StrategyExecutor
+    DatasetLoader -->|questions| StrategyExecutor
+    StrategyExecutor -->|prompts| OllamaClient
+    OllamaClient -->|responses| Judge
+    Judge -->|scores| ResultAggregator
+    ResultAggregator -->|outputs| PlotGenerator["Plot Generator<br/>Matplotlib"]
+```
