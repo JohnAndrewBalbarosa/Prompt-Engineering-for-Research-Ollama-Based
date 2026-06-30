@@ -1,0 +1,11 @@
+model_id,strategy,accuracy,correct,total,avg_latency_ms
+ollama_gemma2_9b,chain_of_thought,0.9000,18,20,8889
+ollama_llama2_13b_chat,chain_of_thought,0.1000,2,20,27138
+ollama_mistral_7b_instruct,chain_of_thought,0.5500,11,20,6499
+ollama_phi3_mini,chain_of_thought,0.8500,17,20,4842
+ollama_qwen2_5_7b,chain_of_thought,0.9500,19,20,6801
+ollama_gemma2_9b,zero_shot,0.5500,11,20,5903
+ollama_llama2_13b_chat,zero_shot,0.2000,4,20,19565
+ollama_mistral_7b_instruct,zero_shot,0.4000,8,20,6049
+ollama_phi3_mini,zero_shot,0.7500,15,20,6582
+ollama_qwen2_5_7b,zero_shot,0.6000,12,20,5524
