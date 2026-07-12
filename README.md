@@ -8,35 +8,27 @@ Repository: [JohnAndrewBalbarosa/Prompt-Engineering-for-Research-Ollama-Based](h
 
 ## Problem and Goal
 
-This project should be read as a technical build: it identifies a concrete workflow or research problem, implements a working system around that problem, and documents enough evidence for another person to understand, run, and evaluate the result.
+**Problem.** Prompt-strategy claims are often based on cloud models or anecdotal examples, making local model comparisons difficult to reproduce.
 
-Primary goals:
-
-- Explain what the project does and who it is for.
-- Show the architecture and implementation choices.
-- Provide enough setup guidance for local review.
-- Report measured results when available.
-- Make limitations and next steps explicit instead of implying unverified impact.
+**Goal.** Run a local-only GSM8K experiment that compares zero-shot and chain-of-thought prompting across Ollama models using repeatable exact-match evaluation.
 
 ## System Design
 
-Current documented components:
-
-- Source implementation for the core project logic.
-- Utility scripts for running, generating, or processing project data.
-
-Project tags:
-
-- To be tagged based on the final project stack.
+- `src/`: experiment loading, Ollama inference, answer extraction, and evaluation logic.
+- `prompts/`: versioned prompt strategies.
+- `config/` + `scripts/`: model/run configuration and experiment entry points.
+- `results/`: saved outputs and aggregate comparisons; `data/`: dataset inputs/cache.
 
 ## Setup and Usage
 
-Use the commands below as the starting point for local setup. Verify environment variables, secrets, datasets, and external services before running production-like workflows.
-
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env
+
+# Start Ollama and pull the configured local models, then inspect scripts/
+python scripts/run_experiment.py --help
 ```
 
 ## Evaluation Method
